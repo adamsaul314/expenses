@@ -1,123 +1,205 @@
 # expenses
 
-A small Python tool that turns a monthly **Revolut** CSV statement (including
-linked **Bank of Ireland** activity) into a clean Euro spending report. Built
-for a user in Galway, Ireland.
+A personal expense tracker for **Revolut** CSV statements in Euro, built for a
+Galway (Ireland) user. Drop a monthly statement in, and it filters out
+everything that isn't real spending, sorts it into local categories
+(groceries, utilities, transport, dining, …), and produces a tidy report.
 
-It picks the newest CSV from `statements/`, keeps only completed EUR
-transactions, categorises spending with local keyword rules (Tesco, Dunnes,
-ESB, Bord Gáis, Irish Rail, Q-Park, pubs, and more), and writes the summary as
-Markdown, CSV, and JSON.
+It can run **on your laptop in one command**, or **automatically once a month**
+in GitHub Actions using a Google Drive folder as the source.
 
-## Features
+---
 
-- Newest-statement auto-discovery (or point at a specific file).
-- Completed-only filtering; pending/reverted/declined rows are skipped.
-- Robust Euro parsing: `€1,234.56` and `1.234,56` both work.
-- Excludes money movement (top-ups, transfers, exchanges) so Bank of Ireland
-  top-ups don't offset real spending.
-- Keyword categorisation tuned for Ireland, with an `Uncategorized` bucket.
-- Reports: per-category totals, top merchants, uncategorized lines, and
-  non-EUR rows listed separately.
-- Standard-library core; Google Drive support is isolated for CI.
+## What it does
 
-## Requirements
+- Finds the newest statement automatically (or you point it at a specific file).
+- Keeps only **completed** transactions — pending, declined and reversed rows are skipped.
+- Reads Euro amounts whether they're written `€1,234.56` or `1.234,56`.
+- Ignores money movement (top-ups, transfers, exchanges), so transfers from your
+  Bank of Ireland account don't cancel out real spending.
+- Categorises by keyword — Tesco/Dunnes/Lidl → Groceries, ESB/Bord Gáis → Utilities,
+  Irish Rail/Q-Park → Transport, pubs/Deliveroo → Dining & Social, and so on.
+- Writes the result as **Markdown**, **CSV** and **JSON**:
+  `output/summary_YYYY-MM.{md,csv,json}`.
 
-- Python 3.10+
+---
 
-## Quick start (local)
+## What we're using (and why)
 
-```bash
-# 1. Put a Revolut CSV export in statements/ (it is git-ignored).
-cp ~/Downloads/statement.csv statements/
+| Piece | What it is | Why it's here |
+|---|---|---|
+| **Python 3.10+ (standard library only)** | The tracker itself — `csv`, `decimal`, `argparse`, `pathlib`. | No third-party dependencies for the core, so it runs almost anywhere. |
+| **GNU Make** | A `Makefile` with friendly shortcuts. | `make report` is the whole monthly routine in one command. |
+| **Google Drive API + service account** | A machine account that reads your `expenses` Drive folder. | A GitHub runner can't see the Drive folder mounted on your desktop, so it needs its own read-only credentials. |
+| **GitHub Actions** | The scheduler/runner. | Generates the report on the 1st of each month even if your laptop is off, and stores it as an artifact. |
+| **pytest** | The test suite (55 tests). | Keeps the amount parsing, filtering and categorisation correct as you add keywords. |
 
-# 2. Option A — no install needed (standard library only):
-PYTHONPATH=src python3 -m expenses
+The core tracker has **no dependencies**. Only the Drive download
+(`scripts/fetch_statement.py`) needs the Google libraries, and that's isolated so
+everyday local use stays simple.
 
-#    Option B — proper venv (recommended on Debian/Ubuntu, PEP 668):
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev,drive]"
-expenses
-```
+---
 
-Output is printed to the terminal and saved to `output/summary_YYYY-MM.{md,csv,json}`.
+## Everyday use
 
-### Make shortcuts
+> On this machine the one-time setup is already done (virtualenv created, Drive
+> folder shared, GitHub secret set). So day to day you only need the steps below.
 
-`make` wraps the common flows and uses `.venv` directly, so you don't need to
-activate it:
+### The monthly routine
 
-```bash
-make setup     # create .venv and install dev + Drive deps
-make fetch     # download the newest statement from Google Drive
-make report    # fetch, then generate the report (everyday command)
-make run       # report from the newest local statement
-make test      # run the test suite
-make dump      # show detected columns
-make help      # list all targets
-```
+**1. Get the statement into Google Drive**
+In the Revolut app: *Profile → Statements → Export* (CSV), then upload it to your
+Google Drive folder called **`expenses`**.
 
-### Useful options
+**2. Generate the report**
 
 ```bash
-expenses --file statements/statement.csv   # specific file
-expenses --month 2024-01                   # filter to one month
-expenses --format md                       # choose output formats
-expenses --dump-columns                    # inspect a file's columns
-expenses --help
+cd ~/Desktop/projects/expenses
+make report
 ```
 
-`--dump-columns` is handy the first time you export from Revolut: it prints the
-header names and how they map to the fields the tool expects.
+That downloads the newest statement from Drive and writes the report. Open
+`output/summary_YYYY-MM.md` to read it — it also prints to the terminal.
 
-## How transactions are selected
+**That's it.** If you'd rather do nothing, the GitHub Actions workflow does the
+same thing automatically at **06:00 UTC on the 1st of every month** and saves the
+report as a downloadable artifact.
 
-1. Rows are kept only when `State == COMPLETED`.
-2. Non-EUR rows are reported under "Non-EUR" and excluded from totals.
-3. `Type` values `TRANSFER`, `TOPUP`, `EXCHANGE` (money movement) are ignored.
-4. Negative amounts are outflows; positive amounts are inflows and are shown
-   separately, not netted against spending.
-5. Negative `Fee` values become their own `Fees` line.
+### Reading the report
 
-Categorisation rules live in [`src/expenses/config.py`](src/expenses/config.py) —
-add or reorder keywords there; the first match wins.
+The Markdown summary has four parts:
 
-## Google Drive in CI (one-off setup)
+- **Header** — the date range, source file, and total spend.
+- **Spend by category** — how much went to each category and its share of the total.
+- **Top merchants** — your biggest individual payees.
+- **Uncategorized / Non-EUR** — anything the keyword rules didn't recognise, and
+  rows in another currency (excluded from totals). Check this occasionally and add
+  a keyword if a regular merchant shows up.
 
-The monthly GitHub Actions workflow reads statements from a Google Drive folder
-(`expenses`) using a service account, because a desktop Drive mount is not
-available on a runner. The folder is located **by name**, so no folder ID is
-needed.
+### Command cheat sheet
 
-1. Create a Google Cloud project and enable the **Google Drive API**.
-2. Create a **service account**, then create and download a **JSON key**.
-3. In Google Drive, share the `expenses` folder with the service-account email
-   (`...@<project>.iam.gserviceaccount.com`) as **Viewer**.
-4. Add the repository secret (Settings → Secrets and variables → Actions):
-   - `GDRIVE_SERVICE_ACCOUNT_JSON` — the full contents of the JSON key.
+Run from the project folder.
 
-If your folder is not called `expenses`, set `GDRIVE_FOLDER_NAME` (as an env var,
-the `--folder-name` flag, or a repository variable).
+| Command | What it does |
+|---|---|
+| `make report` | **Everyday command** — fetch newest statement from Drive, then report |
+| `make run` | Report from the newest file already in `statements/` (no Drive) |
+| `make fetch` | Only download the newest statement into `statements/` |
+| `make dump` | Show the statement's columns and how they were mapped |
+| `make test` | Run the test suite |
+| `make clean` | Delete the `output/` folder |
+| `make help` | List all shortcuts |
 
-You can test the fetch locally:
+You can also call the tool directly (e.g. without the venv activated):
 
 ```bash
-pip install -r requirements.txt
-python scripts/fetch_statement.py \
-  --service-account-file /path/to/key.json
+.venv/bin/expenses --file statements/statement.csv   # a specific file
+.venv/bin/expenses --month 2026-10                    # only one month
+.venv/bin/expenses --format md                        # Markdown only
+.venv/bin/expenses --dump-columns                     # inspect columns
+.venv/bin/expenses --help
 ```
 
-## GitHub Actions
+---
+
+## What counts as spending
+
+For each statement, the tool applies these rules in order:
+
+1. `State` must be `COMPLETED`.
+2. Non-EUR rows are listed under **Non-EUR** and excluded from totals.
+3. Transaction types `TRANSFER`, `TOPUP` and `EXCHANGE` (money movement) are ignored.
+4. Negative amounts are outflows (spending); positive amounts are inflows, shown
+   separately and *not* netted against spending.
+5. A negative `Fee` becomes its own `Fees` line.
+
+Categorisation is by keyword, first match wins, using word boundaries so short
+terms don't over-match. The rules live in
+[`src/expenses/config.py`](src/expenses/config.py).
+
+### Adding or fixing a category
+
+Open `src/expenses/config.py` and add a keyword to the relevant list, then:
+
+```bash
+make test     # make sure nothing broke
+make run      # regenerate the report
+```
+
+To send an opaque card descriptor to a category, add the exact string (for
+example, the gala charge `shenduqrwea` is mapped to Dining & Social).
+
+---
+
+## Automation (GitHub Actions)
 
 [`.github/workflows/monthly-report.yml`](.github/workflows/monthly-report.yml)
-runs at **06:00 UTC on the 1st of each month** (and on manual dispatch). It
-installs dependencies, runs the tests, fetches the newest statement from Drive,
-generates the report, and uploads `output/` as the `expense-summary` artifact.
+runs on a schedule and can be triggered by hand. It:
 
-> Notes: scheduled workflows only run from the default branch, and GitHub
-> disables schedules after ~60 days of repository inactivity. Re-enable from the
-> Actions tab, or trigger a manual run.
+1. installs dependencies,
+2. runs the tests,
+3. downloads the newest CSV from the Drive `expenses` folder,
+4. generates the report,
+5. uploads `output/` as the `expense-summary` artifact.
+
+Trigger a run manually (needs the GitHub CLI, already installed here):
+
+```bash
+gh workflow run "Monthly expense report"
+gh run watch
+```
+
+> Notes: scheduled workflows only run from the default branch, and GitHub pauses
+> schedules after ~60 days of repository inactivity. Re-enable from the Actions
+> tab if needed.
+
+---
+
+## One-time setup reference
+
+This is what was configured — keep it for rebuilding on a new machine.
+
+### A. Local tool
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev,drive]"
+```
+
+(On Debian/Ubuntu, `sudo apt install python3.12-venv` first if `venv` is
+missing. If you don't want to install anything, you can instead run the core
+tool with `PYTHONPATH=src python3 -m expenses` — no Google Drive support.)
+
+### B. Google Drive access
+
+1. Create a Google Cloud project and enable the **Google Drive API**.
+2. Create a **service account** and a **JSON key**.
+3. Share the Drive folder (`expenses`) with the service-account email as **Viewer**.
+4. Store the key contents as the repository secret `GDRIVE_SERVICE_ACCOUNT_JSON`.
+
+The fetch script finds the folder **by name** (default `expenses`); set
+`GDRIVE_FOLDER_NAME` or pass `--folder-name` if yours differs. On this machine
+the key lives at `~/.config/expenses/service-account.json` and is used by
+`make fetch`. Test it with:
+
+```bash
+.venv/bin/python scripts/fetch_statement.py \
+  --service-account-file ~/.config/expenses/service-account.json
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `error: externally-managed-environment` when running `pip install` | Use the virtualenv above, or `PYTHONPATH=src python3 -m expenses` for the core tool. |
+| `No CSV statements found` | Put a CSV in `statements/`, or run `make fetch`, or check the Drive folder name. |
+| `no Drive folder named 'expenses'` | Share the folder with the service-account email (Viewer). |
+| Lots of `Uncategorized` | Add keywords in `src/expenses/config.py`, then `make test && make run`. |
+| Garbled names like `An PÃºcÃ¡n` | Already handled — the tool repairs double-encoded UTF-8 from Revolut exports. |
+
+---
 
 ## Project layout
 
@@ -126,22 +208,17 @@ src/expenses/
   __main__.py     CLI and pipeline orchestration
   config.py       categories, keyword rules, column aliases
   loader.py       newest-CSV discovery + CSV reading
-  parser.py       amount/date parsing, Transaction model
+  parser.py       amount/date parsing, UTF-8 repair, Transaction model
   categorize.py   keyword → category
   report.py       aggregation + Markdown/CSV/JSON writers
 scripts/
-  fetch_statement.py   Google Drive download for CI
-tests/                   unit + end-to-end tests on a fixture
-```
-
-## Development
-
-```bash
-pip install -e ".[dev]"
-pytest -q
+  fetch_statement.py   Google Drive download (used locally and in CI)
+tests/                   unit + end-to-end tests on a redacted fixture
+Makefile                 make report / fetch / run / test / dump / clean
+.github/workflows/       monthly scheduled report
 ```
 
 ## Privacy
 
-`statements/*.csv`, `output/`, and service-account keys are git-ignored. Keep
-the repository private and never commit real bank data.
+`statements/*.csv`, `output/`, and service-account keys are git-ignored. Keep the
+repository private and never commit real bank data or the JSON key.
