@@ -31,15 +31,32 @@ Markdown, CSV, and JSON.
 # 1. Put a Revolut CSV export in statements/ (it is git-ignored).
 cp ~/Downloads/statement.csv statements/
 
-# 2. Run without installing anything:
-PYTHONPATH=src python -m expenses
+# 2. Option A — no install needed (standard library only):
+PYTHONPATH=src python3 -m expenses
 
-# ...or install the console script:
-pip install -e .
+#    Option B — proper venv (recommended on Debian/Ubuntu, PEP 668):
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev,drive]"
 expenses
 ```
 
 Output is printed to the terminal and saved to `output/summary_YYYY-MM.{md,csv,json}`.
+
+### Make shortcuts
+
+`make` wraps the common flows and uses `.venv` directly, so you don't need to
+activate it:
+
+```bash
+make setup     # create .venv and install dev + Drive deps
+make fetch     # download the newest statement from Google Drive
+make report    # fetch, then generate the report (everyday command)
+make run       # report from the newest local statement
+make test      # run the test suite
+make dump      # show detected columns
+make help      # list all targets
+```
 
 ### Useful options
 
