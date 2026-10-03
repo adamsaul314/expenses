@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Expenses</title>
+<meta name="description" content="Personal Euro expense tracker">
+<meta name="theme-color" content="#2563eb">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">&euro;</span>
+    <h1>Expenses</h1>
+  </div>
+  <div class="controls">
+    <label class="field">
+      <span>Month</span>
+      <select id="month-select" aria-label="Select month"></select>
+    </label>
+    <button id="refresh" class="icon-btn" title="Refresh" aria-label="Refresh">&#8635;</button>
+  </div>
+</header>
+
+<main id="main">
+  <p class="status" id="status">Loading&hellip;</p>
+
+  <div id="dashboard" hidden>
+    <section class="cards">
+      <div class="card">
+        <span class="card-label">Total spend</span>
+        <span class="card-value" id="card-spend">&mdash;</span>
+      </div>
+      <div class="card">
+        <span class="card-label">Transactions</span>
+        <span class="card-value" id="card-count">&mdash;</span>
+      </div>
+      <div class="card">
+        <span class="card-label">Top category</span>
+        <span class="card-value card-value-sm" id="card-top">&mdash;</span>
+      </div>
+      <div class="card">
+        <span class="card-label">Inflow (excluded)</span>
+        <span class="card-value" id="card-inflow">&mdash;</span>
+      </div>
+    </section>
+
+    <section class="charts">
+      <div class="panel">
+        <h2>Spend by category</h2>
+        <div class="chart-box"><canvas id="donut"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Monthly trend</h2>
+        <div class="chart-box"><canvas id="trend"></canvas></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Top merchants</h2>
+      <div class="table-wrap">
+        <table id="merchant-table">
+          <thead><tr><th>Merchant</th><th class="num">Count</th><th class="num">Total</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Transactions</h2>
+      <div class="filters">
+        <input id="search" type="search" placeholder="Search description&hellip;" aria-label="Search transactions">
+        <select id="category-filter" aria-label="Filter by category"></select>
+      </div>
+      <div class="table-wrap">
+        <table id="tx-table">
+          <thead><tr><th>Date</th><th>Description</th><th>Category</th><th class="num">Amount</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" id="notes-panel" hidden></section>
+  </div>
+</main>
+
+<script src="/vendor/chart.umd.min.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

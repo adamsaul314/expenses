@@ -1,7 +1,7 @@
 from decimal import Decimal
 from pathlib import Path
 
-from expenses.__main__ import _select_transactions
+from expenses.pipeline import select_transactions
 from expenses.loader import read_rows
 from expenses.report import build_report, format_eur, render_markdown
 
@@ -10,7 +10,7 @@ FIXTURE = Path(__file__).parent / "fixtures" / "sample_revolut.csv"
 
 def _report():
     rows, colmap = read_rows(FIXTURE)
-    outflows, inflows, non_eur = _select_transactions(rows, colmap, month=None)
+    outflows, inflows, non_eur = select_transactions(rows, colmap, month=None)
     return build_report(outflows, inflows=inflows, non_eur=non_eur, source=str(FIXTURE))
 
 
@@ -53,7 +53,7 @@ def test_non_eur_is_reported_not_counted():
 
 def test_pending_is_ignored():
     rows, colmap = read_rows(FIXTURE)
-    outflows, _, _ = _select_transactions(rows, colmap, month=None)
+    outflows, _, _ = select_transactions(rows, colmap, month=None)
     assert all("Pending Coffee Shop" not in tx.description for tx in outflows)
 
 

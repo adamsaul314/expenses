@@ -12,7 +12,8 @@ dependencies = []
 
 [project.optional-dependencies]
 drive = ["google-api-python-client>=2.100", "google-auth>=2.23"]
-dev = ["pytest>=7.4"]
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.27", "httpx>=0.27"]
+dev = ["pytest>=7.4", "httpx>=0.27"]
 
 [project.scripts]
 expenses = "expenses.__main__:main"

@@ -128,6 +128,11 @@ def main(argv: list[str] | None = None) -> int:
         default="statements",
         help="Destination directory (default: statements).",
     )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Download every CSV, not just the newest (used to build history).",
+    )
     args = parser.parse_args(argv)
 
     service = build_service(load_credentials_info(args))
@@ -137,9 +142,11 @@ def main(argv: list[str] | None = None) -> int:
     if not files:
         raise SystemExit(f"error: no CSV files found in Drive folder {folder_id}")
 
-    newest = files[0]
-    target = download(service, newest, Path(args.dest))
-    print(f"Fetched {newest['name']} -> {target}")
+    selected = files if args.all else files[:1]
+    # Oldest first so the final "newest" run wins when history is rebuilt.
+    for file in reversed(selected):
+        target = download(service, file, Path(args.dest))
+        print(f"Fetched {file['name']} -> {target}")
     return 0
 
 

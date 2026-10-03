@@ -32,7 +32,8 @@ in GitHub Actions using a Google Drive folder as the source.
 | **GNU Make** | A `Makefile` with friendly shortcuts. | `make report` is the whole monthly routine in one command. |
 | **Google Drive API + service account** | A machine account that reads your `expenses` Drive folder. | A GitHub runner can't see the Drive folder mounted on your desktop, so it needs its own read-only credentials. |
 | **GitHub Actions** | The scheduler/runner. | Generates the report on the 1st of each month even if your laptop is off, and stores it as an artifact. |
-| **pytest** | The test suite (55 tests). | Keeps the amount parsing, filtering and categorisation correct as you add keywords. |
+| **FastAPI + Chart.js** | The local web dashboard (also a PWA). | Charts and a searchable table on laptop and phone, reusing the same Python engine. |
+| **pytest** | The test suite (66 tests). | Keeps the amount parsing, filtering and categorisation correct as you add keywords. |
 
 The core tracker has **no dependencies**. Only the Drive download
 (`scripts/fetch_statement.py`) needs the Google libraries, and that's isolated so
@@ -85,9 +86,11 @@ Run from the project folder.
 | `make report` | **Everyday command** — fetch newest statement from Drive, then report |
 | `make run` | Report from the newest file already in `statements/` (no Drive) |
 | `make fetch` | Only download the newest statement into `statements/` |
+| `make web` | Serve the web dashboard at <http://127.0.0.1:8000> |
+| `make backfill` | Download every Drive statement and rebuild monthly history |
 | `make dump` | Show the statement's columns and how they were mapped |
 | `make test` | Run the test suite |
-| `make clean` | Delete the `output/` folder |
+| `make clean` | Delete the `output/` and `history/` folders |
 | `make help` | List all shortcuts |
 
 You can also call the tool directly (e.g. without the venv activated):
@@ -99,6 +102,52 @@ You can also call the tool directly (e.g. without the venv activated):
 .venv/bin/expenses --dump-columns                     # inspect columns
 .venv/bin/expenses --help
 ```
+
+---
+
+## Web dashboard & phone app
+
+A small local web app renders the same report as charts, plus a transaction
+table you can search. It's also a **PWA**, so Android can install it to the home
+screen — no Play Store needed.
+
+### On your laptop
+
+```bash
+make web          # serves http://127.0.0.1:8000
+```
+
+Open <http://127.0.0.1:8000>. You get summary cards, a category donut, a
+month-over-month trend, top merchants, and a searchable/filterable transaction
+table. Each month you process is stored in the git-ignored `history/` folder, so
+the trend fills in over time. To seed history from every statement in Drive:
+
+```bash
+make backfill
+```
+
+### On your Android phone (PWA)
+
+PWAs need HTTPS, so the phone reaches the local server through **Tailscale**
+instead of opening a port to the public internet.
+
+1. Install Tailscale on the laptop and the phone and sign in to the same tailnet
+   (free for personal use):
+
+   ```bash
+   # laptop
+   curl -fsSL https://tailscale.com/install.sh | sh
+   sudo tailscale up
+   sudo tailscale serve --bg 8000     # prints https://<machine>.<tailnet>.ts.net
+   ```
+
+2. Open that HTTPS URL on the phone (same tailnet).
+3. In Chrome: **⋮ → Add to Home screen**. It opens full-screen and caches the
+   shell for offline viewing.
+
+Nothing is exposed publicly — it's only reachable inside your private tailnet.
+If your folder is more than a month old, run `make backfill` first so the trend
+chart has data.
 
 ---
 
@@ -163,7 +212,7 @@ This is what was configured — keep it for rebuilding on a new machine.
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e ".[dev,drive]"
+.venv/bin/pip install -e ".[dev,drive,web]"
 ```
 
 (On Debian/Ubuntu, `sudo apt install python3.12-venv` first if `venv` is
@@ -205,16 +254,19 @@ the key lives at `~/.config/expenses/service-account.json` and is used by
 
 ```
 src/expenses/
-  __main__.py     CLI and pipeline orchestration
+  __main__.py     CLI entry point
+  pipeline.py     shared processing used by both CLI and web
   config.py       categories, keyword rules, column aliases
   loader.py       newest-CSV discovery + CSV reading
   parser.py       amount/date parsing, UTF-8 repair, Transaction model
   categorize.py   keyword → category
   report.py       aggregation + Markdown/CSV/JSON writers
+  web/            FastAPI app + PWA static assets (HTML/CSS/JS/icons)
 scripts/
-  fetch_statement.py   Google Drive download (used locally and in CI)
-tests/                   unit + end-to-end tests on a redacted fixture
-Makefile                 make report / fetch / run / test / dump / clean
+  fetch_statement.py    Google Drive download (used locally and in CI)
+  backfill_history.py   rebuild monthly history from statements/
+tests/                   unit, API and end-to-end tests on a redacted fixture
+Makefile                 make report / web / fetch / backfill / test / dump / clean
 .github/workflows/       monthly scheduled report
 ```
 
