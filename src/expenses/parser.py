@@ -139,6 +139,24 @@ def parse_date(raw) -> Optional[date]:
         return None
 
 
+_MOJIBAKE_MARKERS = ("Ã", "Â", "â€")
+
+
+def repair_mojibake(text: str) -> str:
+    """Repair UTF-8 text that was accidentally double-encoded.
+
+    Some Revolut exports store e.g. ``An Púcán`` as ``An PÃºcÃ¡n``. Reversing
+    the round-trip recovers the original; anything that doesn't survive the
+    round-trip is returned unchanged.
+    """
+    if not text or not any(marker in text for marker in _MOJIBAKE_MARKERS):
+        return text
+    try:
+        return text.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
+
+
 def parse_transactions(
     rows: Iterable[dict], colmap: dict[str, str]
 ) -> Iterator[Transaction]:
@@ -173,13 +191,13 @@ def parse_transactions(
         description = (cell(row, "description") or "")
 
         yield Transaction(
-            description=str(description).strip(),
+            description=repair_mojibake(str(description).strip()),
             amount=amount,
             fee=fee,
             currency=str(currency).strip().upper(),
             state=str(state).strip(),
             type=str(tx_type).strip().upper(),
-            product=str(product).strip(),
+            product=repair_mojibake(str(product).strip()),
             completed=parse_date(cell(row, "completed_date")),
             started=parse_date(cell(row, "started_date")),
         )

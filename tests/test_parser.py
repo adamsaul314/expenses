@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 
 from expenses.loader import normalize_columns
-from expenses.parser import parse_amount, parse_date, parse_transactions
+from expenses.parser import parse_amount, parse_date, parse_transactions, repair_mojibake
 
 
 @pytest.mark.parametrize(
@@ -47,6 +47,12 @@ def test_parse_amount_rejects_junk(raw):
 def test_parse_date(raw, expected):
     result = parse_date(raw)
     assert (result.isoformat() if result else None) == expected
+
+
+def test_repair_mojibake():
+    assert repair_mojibake("An PÃºcÃ¡n") == "An Púcán"
+    assert repair_mojibake("Tesco Galway") == "Tesco Galway"
+    assert repair_mojibake("") == ""
 
 
 def test_normalize_columns_accepts_revolut_headers():

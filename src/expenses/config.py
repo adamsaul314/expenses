@@ -53,7 +53,7 @@ CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
             "esb", "electric ireland", "bord gais", "bord gáis", "gas",
             "gas networks", "irish water", "virgin media", "eir", "eircom",
             "sky", "vodafone", "three", "prepay power", "pinergy",
-            "sse airtricity", "energia",
+            "sse airtricity", "energia", "48 mobile",
         ),
     ),
     (
@@ -75,6 +75,7 @@ CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
             "uber eats", "ubereats", "pub", "bar", "tavern", "brewery",
             "wetherspoon", "spoons", "nando", "domino", "starbucks",
             "costa", "insomnia", "butlers", "dining", "takeaway",
+            "supermac", "electric galway", "an pucan", "púcán", "pucan",
         ),
     ),
     (
