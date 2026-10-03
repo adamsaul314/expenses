@@ -18,6 +18,7 @@ from expenses.categorize import categorize
         ("An Púcán", "Dining & Social"),
         ("Supermac's", "Dining & Social"),
         ("Electric Galway", "Dining & Social"),
+        ("Shenduqrwea", "Dining & Social"),
         ("48 Mobile", "Utilities"),
         ("Boots Pharmacy", "Health & Pharmacy"),
         ("NETFLIX.COM", "Subscriptions"),

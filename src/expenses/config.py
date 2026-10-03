@@ -76,6 +76,7 @@ CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
             "wetherspoon", "spoons", "nando", "domino", "starbucks",
             "costa", "insomnia", "butlers", "dining", "takeaway",
             "supermac", "electric galway", "an pucan", "púcán", "pucan",
+            "shenduqrwea",  # opaque card descriptor for a Galway gala event
         ),
     ),
     (
