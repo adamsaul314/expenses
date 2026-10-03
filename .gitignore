@@ -1,0 +1,19 @@
+# Bank data and generated reports must never be committed.
+/statements/*
+!/statements/.gitkeep
+/output/
+
+# Google service-account keys
+*service-account*.json
+*service_account*.json
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/

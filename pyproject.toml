@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "expenses"
+version = "0.1.0"
+description = "Personal Euro expense tracker for Revolut CSV statements"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+drive = ["google-api-python-client>=2.100", "google-auth>=2.23"]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+expenses = "expenses.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
